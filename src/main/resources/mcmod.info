@@ -3,7 +3,7 @@
 	"name": "${mod_name}",
 	"version": "${mod_version}",
 	"mcversion": "1.12.2",
-	"description": "A mod that redirects MixinBooter mixins so they are loaded with FermiumBooter instead. May break things.",
+	"description": "A mod that redirects MixinBooter mixins so they are loaded with FermiumBooter instead.",
 	"authorList": ["Henrykado, Rongmario"],
 	"credits": "Thanks to LegacyModdingMC + Fabric for providing the initial mixin fork.",
 	"url": "https://github.com/Henrykado/MixinBooterPoliticization",
