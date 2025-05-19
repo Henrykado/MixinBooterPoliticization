@@ -67,6 +67,9 @@ repositories {
     maven {
         url 'https://jitpack.io'
     }
+    maven {
+        url = 'https://www.cursemaven.com'
+    }
     // maven {
         // name 'Fabric'
         // url 'https://maven.fabricmc.net/'
@@ -74,6 +77,8 @@ repositories {
 }
 
 dependencies {
+    implementation rfg.deobf("curse.maven:fermiumbooter-968474:6386622")
+    //implementation rfg.deobf("curse.maven:mixinbootstrap-357178:3437402")
     String mixinDep = modUtils.enableMixins('com.github.CleanroomMC:UniMix:9d4b487ed3')
     mixin (mixinDep) {
         transitive = false
@@ -248,3 +253,5 @@ publishing {
         }
     }
 }
+
+build.dependsOn(properJar)

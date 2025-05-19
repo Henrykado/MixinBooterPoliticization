@@ -1,54 +1,31 @@
 package zone.rong.mixinbooter;
 
-import com.google.gson.*;
-import com.llamalad7.mixinextras.MixinExtrasBootstrap;
-import net.minecraft.launchwrapper.Launch;
-import net.minecraftforge.fml.common.*;
-import net.minecraftforge.fml.common.discovery.ASMDataTable;
-import net.minecraftforge.fml.common.discovery.ModCandidate;
+import fermiumbooter.FermiumRegistryAPI;
+import fermiumbooter.util.FermiumEarlyModIDSearcher;
 import net.minecraftforge.fml.relauncher.FMLInjectionData;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.spongepowered.asm.launch.GlobalProperties;
-import org.spongepowered.asm.launch.MixinBootstrap;
-import org.spongepowered.asm.mixin.Mixins;
-import org.spongepowered.asm.mixin.ModUtil;
-import org.spongepowered.asm.mixin.transformer.Config;
-import org.spongepowered.asm.util.PrettyPrinter;
-import org.spongepowered.asm.util.asm.ASM;
-import zone.rong.mixinbooter.fix.MixinFixer;
 
-import java.io.InputStreamReader;
 import java.lang.reflect.Field;
-import java.net.URL;
 import java.util.*;
-import java.util.function.Supplier;
 
 @IFMLLoadingPlugin.Name("MixinBooter")
+@IFMLLoadingPlugin.MCVersion("1.12.2")
 @IFMLLoadingPlugin.SortingIndex(Integer.MIN_VALUE + 1)
 public final class MixinBooterPlugin implements IFMLLoadingPlugin {
 
     public static final Logger LOGGER = LogManager.getLogger("MixinBooter");
 
-    private static final Map<String, String> presentJarsToMods = new HashMap<>();
-    private static final Set<String> presentMods = new HashSet<>();
-    private static final Set<String> unmodifiablePresentMods = Collections.unmodifiableSet(presentMods);
-
-    private static Field modApiManager$dataTable;
-
     static String getMinecraftVersion() {
         return (String) FMLInjectionData.data()[4];
     }
 
-    public MixinBooterPlugin() {
-        this.addTransformationExclusions();
-        this.initialize();
-    }
+    public MixinBooterPlugin() {}
 
     @Override
     public String[] getASMTransformerClass() {
-        return new String[0];
+        return new String[]{"zone.rong.mixinbooter.MixinBooterClassTransformer"};
     }
 
     @Override
@@ -64,10 +41,9 @@ public final class MixinBooterPlugin implements IFMLLoadingPlugin {
     @Override
     public void injectData(Map<String, Object> data) {
         Object coremodList = data.get("coremodList");
+        LOGGER.info("injecting data");
         if (coremodList instanceof List) {
-            Collection<IEarlyMixinLoader> earlyLoaders = this.gatherEarlyLoaders((List) coremodList);
-            this.loadEarlyLoaders(earlyLoaders);
-            this.recordConfigOwners();
+            this.loadMixinLoaders((List) coremodList);
         } else {
             throw new RuntimeException("Blackboard property 'coremodList' must be of type List, early loaders were not able to be gathered");
         }
@@ -78,125 +54,22 @@ public final class MixinBooterPlugin implements IFMLLoadingPlugin {
         return null;
     }
 
-    private void addTransformationExclusions() {
-        Launch.classLoader.addTransformerExclusion("scala.");
-        // Launch.classLoader.addTransformerExclusion("com.llamalad7.mixinextras.");
-    }
-
-    private void initialize() {
-        GlobalProperties.put(GlobalProperties.Keys.CLEANROOM_DISABLE_MIXIN_CONFIGS, new HashSet<>());
-
-        LOGGER.info("Initializing Mixins...");
-        MixinBootstrap.init();
-
-        Mixins.addConfiguration("mixin.mixinbooter.init.json");
-
-        LOGGER.info("Initializing MixinExtras...");
-        this.initMixinExtras();
-
-        MixinFixer.patchAncientModMixinsLoadingMethod();
-
-        LOGGER.info("Gathering present mods...");
-        this.gatherPresentMods();
-
-        this.afterAll();
-    }
-
-    private void initMixinExtras() {
-        if (!ASM.isAtLeastVersion(5, 1)) {
-            Launch.classLoader.registerTransformer("zone.rong.mixinbooter.fix.mixinextras.MixinExtrasFixer");
-        }
-        MixinExtrasBootstrap.init();
-    }
-
-    private void afterAll() {
-        if (unmodifiablePresentMods.contains("spongeforge")) {
-            LOGGER.info("Registering SpongeForgeFixer transformer to solve issues pertaining SpongeForge.");
-            Launch.classLoader.registerTransformer("zone.rong.mixinbooter.fix.spongeforge.SpongeForgeFixer");
-            // Eagerly load PrettyPrinter class for transformation
-            new PrettyPrinter();
-            // Also apply eagerly loading of Event.class in the EventSubscriptionTransformer
-            // While technically a Forge bug, it manifests when SpongeForge is installed with Mixin 0.8.5+
-            Launch.classLoader.registerTransformer("zone.rong.mixinbooter.fix.forge.EagerlyLoadEventClassTransformer");
-        }
-    }
-
-    private void gatherPresentMods() {
-        // TODO: Provide versioning for mods?
-        Gson gson;
-        try {
-            gson = new GsonBuilder().setLenient().create();
-        } catch (NoSuchMethodError e) {
-            // Older gsons
-            gson = new GsonBuilder().create();
-        }
-        try {
-            Enumeration<URL> resources = Launch.classLoader.getResources("mcmod.info");
-            while (resources.hasMoreElements()) {
-                URL url = resources.nextElement();
-                String fileName = getJarNameFromResource(url);
-                if (fileName != null) {
-                    List<String> modIds = parseMcmodInfo(gson, url);
-                    if (!modIds.isEmpty()) {
-                        presentJarsToMods.put(fileName, modIds.get(0));
-                    }
-                    presentMods.addAll(modIds);
-                }
-            }
-
-            URL optifineConfigClass = Launch.classLoader.findResource("Config.class");
-            if (optifineConfigClass != null) {
-                presentJarsToMods.put(getJarNameFromResource(optifineConfigClass), "optifine");
-                presentMods.add("optifine");
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to gather present mods", e);
-        }
-
-        logInfo("Finished gathering %d coremods...", unmodifiablePresentMods.size());
-        logDebug("Coremods gathered: %s", String.join(", ", unmodifiablePresentMods));
-    }
-
-    private String getJarNameFromResource(URL url) {
-        if (url.getPath().contains("!/")) {
-            String filePath = url.getPath().split("!/")[0];
-            String[] parts = filePath.split("/");
-            if (parts.length != 0) {
-                return parts[parts.length - 1];
-            }
-        }
-        return null;
-    }
-
-    private List<String> parseMcmodInfo(Gson gson, URL url) {
-        try {
-            List<String> ids = new ArrayList<>();
-            JsonElement root = gson.fromJson(new InputStreamReader(url.openStream()), JsonElement.class);
-            if (root.isJsonArray()) {
-                for (JsonElement element : root.getAsJsonArray()) {
-                    if (element.isJsonObject()) {
-                        ids.add(element.getAsJsonObject().get("modid").getAsString());
-                    }
-                }
-            } else {
-                for (JsonElement element : root.getAsJsonObject().get("modList").getAsJsonArray()) {
-                    if (element.isJsonObject()) {
-                        ids.add(element.getAsJsonObject().get("modid").getAsString());
-                    }
-                }
-            }
-            return ids;
-        } catch (Throwable t) {
-            logError("Failed to parse mcmod.info for %s", t, url);
-        }
-        return Collections.emptyList();
-    }
-
-    private Collection<IEarlyMixinLoader> gatherEarlyLoaders(List coremodList) {
+    private void loadMixinLoaders(List coremodList) {
         Field fmlPluginWrapper$coreModInstance = null;
-        Set<IEarlyMixinLoader> queuedLoaders = new LinkedHashSet<>();
-        Collection<String> disabledConfigs = GlobalProperties.get(GlobalProperties.Keys.CLEANROOM_DISABLE_MIXIN_CONFIGS);
-        Context context = new Context(null, unmodifiablePresentMods); // For hijackers
+
+        FermiumEarlyModIDSearcher.isModPresent(""); // run just to ensure earlyModIDs isn't null
+
+        Context context;
+        try {
+            Field field = FermiumEarlyModIDSearcher.class.getDeclaredField("earlyModIDs");
+            field.setAccessible(true);
+
+            context = new Context(null, (Set<String>) field.get(null)); // For hijackers
+        } catch (Throwable t) {
+            logError("Failed to load early mixins and hijackers.", t);
+            return;
+        }
+
         for (Object coremod : coremodList) {
             try {
                 if (fmlPluginWrapper$coreModInstance == null) {
@@ -206,103 +79,34 @@ public final class MixinBooterPlugin implements IFMLLoadingPlugin {
                 Object theMod = fmlPluginWrapper$coreModInstance.get(coremod);
                 if (theMod instanceof IMixinConfigHijacker) {
                     IMixinConfigHijacker interceptor = (IMixinConfigHijacker) theMod;
-                    logInfo("Loading config hijacker %s.", interceptor.getClass().getName());
+                    logInfo("Redirecting config hijacker %s.", interceptor.getClass().getName());
                     for (String hijacked : interceptor.getHijackedMixinConfigs(context)) {
-                        disabledConfigs.add(hijacked);
-                        logInfo("%s will hijack the mixin config %s", interceptor.getClass().getName(), hijacked);
+                        FermiumRegistryAPI.removeMixin(hijacked);
                     }
                 }
-                if (theMod instanceof IEarlyMixinLoader) {
-                    queuedLoaders.add((IEarlyMixinLoader) theMod);
+                else if (theMod instanceof IEarlyMixinLoader) {
+                    IEarlyMixinLoader earlyMixinLoader = (IEarlyMixinLoader) theMod;
+                    for (String mixinConfig : earlyMixinLoader.getMixinConfigs()) {
+                        if (earlyMixinLoader.shouldMixinConfigQueue(context)) {
+                            logInfo("Redirecting [%s] mixin configuration.", mixinConfig);
+                            FermiumRegistryAPI.enqueueMixin(false, mixinConfig);
+                        }
+                    }
                 }
             } catch (Throwable t) {
                 LOGGER.error("Unexpected error", t);
             }
         }
-        return queuedLoaders;
     }
 
-    private void loadEarlyLoaders(Collection<IEarlyMixinLoader> queuedLoaders) {
-        for (IEarlyMixinLoader queuedLoader : queuedLoaders) {
-            logInfo("Loading early loader %s for its mixins.", queuedLoader.getClass().getName());
-            try {
-                for (String mixinConfig : queuedLoader.getMixinConfigs()) {
-                    Context context = new Context(mixinConfig, unmodifiablePresentMods);
-                    if (queuedLoader.shouldMixinConfigQueue(context)) {
-                        logInfo("Adding [%s] mixin configuration.", mixinConfig);
-                        Mixins.addConfiguration(mixinConfig);
-                        queuedLoader.onMixinConfigQueued(context);
-                    }
-                }
-            } catch (Throwable t) {
-                logError("Failed to execute early loader [%s].", t, queuedLoader.getClass().getName());
-            }
-        }
-    }
-
-    private void recordConfigOwners() {
-        for (Config config : Mixins.getConfigs()) {
-            if (!config.getConfig().hasDecoration(ModUtil.OWNER_DECORATOR)) {
-                config.getConfig().decorate(ModUtil.OWNER_DECORATOR, (Supplier) () -> this.retrieveConfigOwner(config));
-            }
-        }
-    }
-
-    private String retrieveConfigOwner(Config config) {
-        if (modApiManager$dataTable == null) {
-            try {
-                modApiManager$dataTable = ModAPIManager.class.getDeclaredField("dataTable");
-                modApiManager$dataTable.setAccessible(true);
-            } catch (ReflectiveOperationException e) {
-                throw new RuntimeException("Unable to reflectively retrieve ModAPIManager#dataTable", e);
-            }
-        }
-        try {
-            ASMDataTable table = (ASMDataTable) modApiManager$dataTable.get(ModAPIManager.INSTANCE);
-            if (table != null) {
-                String pkg = config.getConfig().getMixinPackage();
-                pkg = pkg.charAt(pkg.length() - 1) == '.' ? pkg.substring(0, pkg.length() - 1) : pkg;
-                ModCandidate candidate = table.getCandidatesFor(pkg).stream().findFirst().orElse(null);
-                if (candidate != null) {
-                    ModContainer container = candidate.getContainedMods().get(0);
-                    if (container != null) {
-                        return container.getModId();
-                    }
-                }
-            }
-        } catch (IllegalAccessException ignore) { }
-        URL url = Launch.classLoader.getResource(config.getName());
-        if (url != null) {
-            String jar = this.getJarNameFromResource(url);
-            if (jar != null) {
-                String modId = presentJarsToMods.get(jar);
-                if (modId != null) {
-                    return modId;
-                }
-            }
-        }
-        return ModUtil.UNKNOWN_OWNER;
-    }
-
-    /*
-     * Minecraft 1.8.x uses a beta version of Log4j2 with a slightly different
-     * API for parameterized logging than ended up in the releases used by 1.12+.
-     *
-     * The following methods act as a workaround for that issue while keeping the
-     * performance conscious "log only if enabled" approach employed by Log4j2 internally.
-     */
-
-    @SuppressWarnings("StringConcatenationArgumentToLogCall")
     public static void logInfo(String message, Object... params) {
         LOGGER.info(String.format(message, params));
     }
 
-    @SuppressWarnings("StringConcatenationArgumentToLogCall")
     public static void logError(String message, Throwable t, Object... params) {
         LOGGER.error(String.format(message, params), t);
     }
 
-    @SuppressWarnings("StringConcatenationArgumentToLogCall")
     public static void logDebug(String message, Object... params) {
         LOGGER.debug(String.format(message, params));
     }

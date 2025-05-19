@@ -3,9 +3,9 @@
 	"name": "${mod_name}",
 	"version": "${mod_version}",
 	"mcversion": "1.12.2",
-	"description": "A mod that provides the Sponge Mixin library, a standard API for mods to load mixins targeting Minecraft and other mods, and associated useful utilities on 1.8 - 1.12.2.",
-	"authorList": ["Rongmario"],
+	"description": "A mod that redirects MixinBooter mixins so they are loaded with FermiumBooter instead. May break things.",
+	"authorList": ["Henrykado, Rongmario"],
 	"credits": "Thanks to LegacyModdingMC + Fabric for providing the initial mixin fork.",
-	"url": "https://github.com/CleanroomMC/MixinBooter",
+	"url": "https://github.com/Henrykado/MixinBooterPoliticization",
 	"logoFile": "/icon.png"
 }]
