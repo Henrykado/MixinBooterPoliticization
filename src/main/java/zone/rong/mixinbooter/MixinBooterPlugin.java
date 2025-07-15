@@ -1,7 +1,7 @@
 package zone.rong.mixinbooter;
 
 import fermiumbooter.FermiumRegistryAPI;
-import fermiumbooter.util.FermiumEarlyModIDSearcher;
+import fermiumbooter.util.FermiumJarScanner;
 import net.minecraftforge.fml.relauncher.FMLInjectionData;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
 import org.apache.logging.log4j.LogManager;
@@ -57,11 +57,11 @@ public final class MixinBooterPlugin implements IFMLLoadingPlugin {
     private void loadMixinLoaders(List coremodList) {
         Field fmlPluginWrapper$coreModInstance = null;
 
-        FermiumEarlyModIDSearcher.isModPresent(""); // run just to ensure earlyModIDs isn't null
+        FermiumRegistryAPI.isModPresent("foo"); // run just to ensure earlyModIDs isn't null
 
         Context context;
         try {
-            Field field = FermiumEarlyModIDSearcher.class.getDeclaredField("earlyModIDs");
+            Field field = FermiumJarScanner.class.getDeclaredField("earlyModIDs");
             field.setAccessible(true);
 
             context = new Context(null, (Set<String>) field.get(null)); // For hijackers
