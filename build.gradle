@@ -259,7 +259,7 @@ publishing {
 tasks.register('curseforge', net.darkhax.curseforgegradle.TaskPublishCurseForge) {
     apiToken = System.getenv("CURSEFORGE_TOKEN")
 
-    def mainFile = upload("1269321", jar)
+    def mainFile = upload("1269321", properJar)
 
     mainFile.displayName = "${mod_name} - ${mod_version}"
     mainFile.releaseType = "release"
@@ -274,7 +274,7 @@ modrinth {
     projectId = "mixinbooter2fermiumbooter"
     versionNumber = mod_version
     versionType = "release" // This is the default -- can also be `beta` or `alpha`
-    uploadFile = jar
+    uploadFile = properJar
     gameVersions = ["1.12.2"]
     loaders = ["forge"]
     dependencies {
