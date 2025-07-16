@@ -59,12 +59,12 @@ public final class MixinBooterPlugin implements IFMLLoadingPlugin {
 
         FermiumRegistryAPI.isModPresent("foo"); // run just to ensure earlyModIDs isn't null
 
-        Context context;
+        Set<String> presentMods;
         try {
             Field field = FermiumJarScanner.class.getDeclaredField("earlyModIDs");
             field.setAccessible(true);
 
-            context = new Context(null, (Set<String>) field.get(null)); // For hijackers
+            presentMods = (Set<String>) field.get(null); // For hijackers
         } catch (Throwable t) {
             logError("Failed to load early mixins and hijackers.", t);
             return;
@@ -80,14 +80,14 @@ public final class MixinBooterPlugin implements IFMLLoadingPlugin {
                 if (theMod instanceof IMixinConfigHijacker) {
                     IMixinConfigHijacker interceptor = (IMixinConfigHijacker) theMod;
                     logInfo("Redirecting config hijacker %s.", interceptor.getClass().getName());
-                    for (String hijacked : interceptor.getHijackedMixinConfigs(context)) {
+                    for (String hijacked : interceptor.getHijackedMixinConfigs(new Context(null, presentMods))) {
                         FermiumRegistryAPI.removeMixin(hijacked);
                     }
                 }
                 if (theMod instanceof IEarlyMixinLoader) {
                     IEarlyMixinLoader earlyMixinLoader = (IEarlyMixinLoader) theMod;
                     for (String mixinConfig : earlyMixinLoader.getMixinConfigs()) {
-                        if (earlyMixinLoader.shouldMixinConfigQueue(context)) {
+                        if (earlyMixinLoader.shouldMixinConfigQueue(new Context(mixinConfig, presentMods))) {
                             logInfo("Redirecting [%s] mixin configuration.", mixinConfig);
                             FermiumRegistryAPI.enqueueMixin(false, mixinConfig);
                         }

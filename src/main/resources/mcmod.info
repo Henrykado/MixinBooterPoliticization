@@ -7,5 +7,5 @@
 	"authorList": ["Henrykado, Rongmario"],
 	"credits": "Thanks to LegacyModdingMC + Fabric for providing the initial mixin fork.",
 	"url": "https://github.com/Henrykado/MixinBooterPoliticization",
-	"logoFile": "/icon.png"
+	"logoFile": "icon.png"
 }]
