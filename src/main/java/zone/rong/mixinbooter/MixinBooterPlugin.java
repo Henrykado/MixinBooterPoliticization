@@ -84,7 +84,7 @@ public final class MixinBooterPlugin implements IFMLLoadingPlugin {
                         FermiumRegistryAPI.removeMixin(hijacked);
                     }
                 }
-                else if (theMod instanceof IEarlyMixinLoader) {
+                if (theMod instanceof IEarlyMixinLoader) {
                     IEarlyMixinLoader earlyMixinLoader = (IEarlyMixinLoader) theMod;
                     for (String mixinConfig : earlyMixinLoader.getMixinConfigs()) {
                         if (earlyMixinLoader.shouldMixinConfigQueue(context)) {
