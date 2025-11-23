@@ -1,5 +1,10 @@
 # Changelog
 
+## [10.7] - 2025-09-30
+
+### Changed
+- Updated MixinExtras from 0.5.0-rc.1 to 0.5.0
+
 ## [10.6] - 2025-03-25
 
 ### Changed
