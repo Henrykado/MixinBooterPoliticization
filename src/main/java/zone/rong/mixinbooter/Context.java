@@ -1,7 +1,7 @@
 package zone.rong.mixinbooter;
 
-import net.minecraftforge.fml.relauncher.FMLLaunchHandler;
-import org.apache.commons.lang3.SystemUtils;
+import zone.rong.mixinbooter.service.ModDiscoverer;
+import zone.rong.mixinbooter.util.Environment;
 
 import java.util.Collection;
 
@@ -9,16 +9,15 @@ import java.util.Collection;
  * This class contains loading context for callers
  *
  * @since 10.0
+ * @deprecated since 11.0, use {@link Environment#inDev()} and {@link ModDiscoverer#getPresentMods()} instead.
  */
+@Deprecated
 public final class Context {
 
     public enum ModLoader {
 
         FORGE,
         CLEANROOM;
-
-        // Something more robust in the future
-        private static final ModLoader CURRENT = SystemUtils.IS_JAVA_1_8 ? FORGE : CLEANROOM;
 
     }
 
@@ -34,14 +33,14 @@ public final class Context {
      * @return the current mod loader
      */
     public ModLoader modLoader() {
-        return ModLoader.CURRENT;
+        return ModLoader.FORGE; // cleanroom has mixinbooter built-in
     }
 
     /**
      * @return if the current environment is in-dev
      */
     public boolean inDev() {
-        return FMLLaunchHandler.isDeobfuscatedEnvironment();
+        return Environment.inDev();
     }
 
     /**
@@ -52,13 +51,6 @@ public final class Context {
     }
 
     /**
-     * <p>For early contexts, the list of mods are gathered from culling the classloader
-     * for any jars that has the mcmod.info file. The mod IDs are obtained from the mcmod.info file.
-     * This means mostly, if not only coremods are queryable here,
-     * make sure to test a normal mod's existence in your mixin plugin or in the mixin itself.</p>
-     *
-     * <p>For late contexts, it comes from {@link net.minecraftforge.fml.common.Loader#getActiveModList}
-     * akin to {@link net.minecraftforge.fml.common.Loader#isModLoaded(String)}</p>
      * @param modId to check against the list of present mods in the context
      * @return whether the mod is present
      */
