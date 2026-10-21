@@ -1,11 +1,10 @@
 package zone.rong.mixinbooter;
 
 import fermiumbooter.FermiumRegistryAPI;
-import fermiumbooter.util.FermiumJarScanner;
-import net.minecraftforge.fml.relauncher.FMLInjectionData;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import zone.rong.mixinbooter.service.ModDiscoverer;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -16,10 +15,6 @@ import java.util.*;
 public final class MixinBooterPlugin implements IFMLLoadingPlugin {
 
     public static final Logger LOGGER = LogManager.getLogger("MixinBooter");
-
-    static String getMinecraftVersion() {
-        return (String) FMLInjectionData.data()[4];
-    }
 
     public MixinBooterPlugin() {}
 
@@ -44,6 +39,7 @@ public final class MixinBooterPlugin implements IFMLLoadingPlugin {
         LOGGER.info("injecting data");
         if (coremodList instanceof List) {
             this.loadMixinLoaders((List) coremodList);
+            ManifestMixinRedirector.redirectManifestMixins();
         } else {
             throw new RuntimeException("Blackboard property 'coremodList' must be of type List, early loaders were not able to be gathered");
         }
@@ -57,18 +53,7 @@ public final class MixinBooterPlugin implements IFMLLoadingPlugin {
     private void loadMixinLoaders(List coremodList) {
         Field fmlPluginWrapper$coreModInstance = null;
 
-        FermiumRegistryAPI.isModPresent("foo"); // run just to ensure earlyModIDs isn't null
-
-        Set<String> presentMods;
-        try {
-            Field field = FermiumJarScanner.class.getDeclaredField("earlyModIDs");
-            field.setAccessible(true);
-
-            presentMods = (Set<String>) field.get(null); // For hijackers
-        } catch (Throwable t) {
-            logError("Failed to load early mixins and hijackers.", t);
-            return;
-        }
+        Set<String> presentMods = ModDiscoverer.getPresentMods();
 
         for (Object coremod : coremodList) {
             try {
