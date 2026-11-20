@@ -1,4 +1,6 @@
 import org.jetbrains.gradle.ext.Gradle
+import com.gtnewhorizons.retrofuturagradle.minecraft.RunMinecraftTask
+import com.gtnewhorizons.retrofuturagradle.util.Distribution
 
 plugins {
     id 'java'
@@ -14,7 +16,10 @@ def coremod_plugin_name = 'zone.rong.mixinbooter.MixinBooterPlugin'
 
 version = mod_version
 group = 'zone.rong'
-archivesBaseName = 'mixinbooter2fermiumbooter'
+//archivesBaseName = 'mixinbooter2fermiumbooter'
+base {
+    archivesName.set('mixinbooter2fermiumbooter')
+}
 
 java {
     toolchain {
@@ -125,7 +130,7 @@ tasks.register('properJar', Jar) { jar ->
     }
 
     // Set output jar name to have an exclamation mark at the front
-    jar.archiveBaseName.set("!${project.archivesBaseName}")
+    jar.archiveBaseName.set("!${project.base.archivesName.get()}")
 
     // Gather all main source/resource files, excluding any META-INF and replaceable files
     from sourceSets.main.output
@@ -244,7 +249,7 @@ publishing {
         mavenJava(MavenPublication) {
             // from components.java
             groupId project.group
-            artifactId project.archivesBaseName
+            artifactId = base.archivesName.get()
             artifact tasks.named('properJar')
             artifact tasks.named('properSourcesJar')
             artifact tasks.named('javadocJar')
