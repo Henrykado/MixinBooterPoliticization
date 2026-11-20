@@ -5,12 +5,14 @@ import net.minecraftforge.fml.common.DummyModContainer;
 import net.minecraftforge.fml.common.LoadController;
 import net.minecraftforge.fml.common.ModMetadata;
 import net.minecraftforge.fml.common.versioning.ArtifactVersion;
-import net.minecraftforge.fml.common.versioning.DefaultArtifactVersion;
+import net.minecraftforge.fml.common.versioning.VersionParser;
 
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 
 public class MixinBooterModContainer extends DummyModContainer {
+
+    private final Set<ArtifactVersion> requirements = new HashSet<>();
 
     public MixinBooterModContainer() {
         super(new ModMetadata());
@@ -22,7 +24,9 @@ public class MixinBooterModContainer extends DummyModContainer {
         meta.credits = "Thanks to LegacyModdingMC + Fabric for providing the initial mixin fork.";
         meta.version = Tags.VERSION;
         meta.logoFile = "/icon.png";
+        meta.authorList.add("Henrykado");
         meta.authorList.add("Rongmario");
+        this.requirements.add(VersionParser.parseVersionReference("fermiumbooter@[1.6.0,)"));
     }
 
     @Override
@@ -33,9 +37,6 @@ public class MixinBooterModContainer extends DummyModContainer {
 
     @Override
     public Set<ArtifactVersion> getRequirements() {
-        if ("1.12.2".equals(MixinBooterPlugin.getMinecraftVersion())) {
-            return Collections.singleton(new DefaultArtifactVersion("fermiumbooter", true));
-        }
-        return Collections.emptySet();
+        return this.requirements;
     }
 }
